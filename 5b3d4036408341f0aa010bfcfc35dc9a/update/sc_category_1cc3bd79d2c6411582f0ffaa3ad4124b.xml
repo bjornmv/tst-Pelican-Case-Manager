@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sc_category">
+    <sc_category action="INSERT_OR_UPDATE">
+        <active>true</active>
+        <description>Bulk operations for assets stored in Pelican equipment cases</description>
+        <entitlement_script/>
+        <header_icon/>
+        <homepage_image/>
+        <homepage_renderer/>
+        <icon/>
+        <image/>
+        <location/>
+        <mobile_hide_description>false</mobile_hide_description>
+        <mobile_picture/>
+        <mobile_subcategory_render_type/>
+        <module/>
+        <order>100</order>
+        <parent/>
+        <roles/>
+        <sc_catalog display_value="Service Catalog">e0d08b13c3330100c8b837659bba8fb4</sc_catalog>
+        <sys_class_name>sc_category</sys_class_name>
+        <sys_created_by>opencode</sys_created_by>
+        <sys_created_on>2026-05-28 09:58:41</sys_created_on>
+        <sys_id>1cc3bd79d2c6411582f0ffaa3ad4124b</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>Pelican Case Operations</sys_name>
+        <sys_package display_value="Pelican Case Manager" source="x_1535598_pelican">5b3d4036408341f0aa010bfcfc35dc9a</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Pelican Case Manager">5b3d4036408341f0aa010bfcfc35dc9a</sys_scope>
+        <sys_update_name>sc_category_1cc3bd79d2c6411582f0ffaa3ad4124b</sys_update_name>
+        <sys_updated_by>opencode</sys_updated_by>
+        <sys_updated_on>2026-05-28 09:58:41</sys_updated_on>
+        <title>Pelican Case Operations</title>
+    </sc_category>
+    <sys_translated_text action="delete_multiple" query="documentkey=1cc3bd79d2c6411582f0ffaa3ad4124b"/>
+</record_update>

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>public</access>
+        <active>true</active>
+        <api_name>x_1535598_pelican.PelicanCaseAPI</api_name>
+        <caller_access/>
+        <client_callable>true</client_callable>
+        <description>Server API for the Pelican Equipment Case Manager UI Page. Lists cases, lists case contents, moves assets between cases (alm_asset.parent).</description>
+        <mobile_callable>false</mobile_callable>
+        <name>PelicanCaseAPI</name>
+        <sandbox_callable>false</sandbox_callable>
+        <script><![CDATA[var PelicanCaseAPI = Class.create();
+PelicanCaseAPI.prototype = Object.extendsObject(global.AbstractAjaxProcessor, {
+
+    EQUIPMENT_CASE_CATEGORY: '14f99cf4471887507ed4bb30116d43ae',
+    INSTALL_STATUS_RETIRED: '7',
+
+    listCases: function() {
+        var includeEmpty = this.getParameter('sysparm_include_empty') === 'true';
+        var search = this.getParameter('sysparm_search') || '';
+
+        var gr = new GlideRecord('alm_asset');
+        gr.addQuery('model.cmdb_model_category', this.EQUIPMENT_CASE_CATEGORY);
+        gr.addQuery('install_status', '!=', this.INSTALL_STATUS_RETIRED);
+        if (search) {
+            var qc = gr.addQuery('asset_tag', 'CONTAINS', search);
+            qc.addOrCondition('display_name', 'CONTAINS', search);
+            qc.addOrCondition('model.name', 'CONTAINS', search);
+        }
+        gr.orderBy('asset_tag');
+        gr.query();
+
+        var cases = [];
+        while (gr.next()) {
+            var caseId = gr.getUniqueValue();
+            var count = this._countContents(caseId);
+            if (!includeEmpty && count === 0) continue;
+            cases.push({
+                sys_id: caseId,
+                asset_tag: gr.getValue('asset_tag') || '',
+                display_name: gr.getDisplayValue('display_name'),
+                model: gr.getDisplayValue('model'),
+                location: gr.getDisplayValue('location'),
+                install_status: gr.getDisplayValue('install_status'),
+                content_count: count
+            });
+        }
+        return JSON.stringify({ ok: true, cases: cases });
+    },
+
+    getCaseContents: function() {
+        var caseId = this.getParameter('sysparm_case_id');
+        if (!caseId) return this._err('case_id required');
+        var search = this.getParameter('sysparm_search') || '';
+
+        var gr = new GlideRecord('alm_asset');
+        gr.addQuery('parent', caseId);
+        gr.addQuery('install_status', '!=', this.INSTALL_STATUS_RETIRED);
+        if (search) {
+            var qc = gr.addQuery('asset_tag', 'CONTAINS', search);
+            qc.addOrCondition('display_name', 'CONTAINS', search);
+            qc.addOrCondition('model.name', 'CONTAINS', search);
+        }
+        gr.orderBy('display_name');
+        gr.setLimit(500);
+        gr.query();
+
+        var assets = [];
+        while (gr.next()) {
+            assets.push({
+                sys_id: gr.getUniqueValue(),
+                asset_tag: gr.getValue('asset_tag') || '',
+                display_name: gr.getDisplayValue('display_name'),
+                model: gr.getDisplayValue('model'),
+                serial_number: gr.getValue('serial_number') || ''
+            });
+        }
+        return JSON.stringify({ ok: true, assets: assets, truncated: assets.length === 500 });
+    },
+
+    moveAssets: function() {
+        var assetIdsRaw = this.getParameter('sysparm_asset_ids') || '';
+        var targetCaseId = this.getParameter('sysparm_target_case_id') || '';
+
+        var assetIds = assetIdsRaw.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+        if (assetIds.length === 0) return this._err('asset_ids required');
+
+        if (targetCaseId) {
+            var target = new GlideRecord('alm_asset');
+            if (!target.get(targetCaseId)) return this._err('target case not found');
+            var modelGr = new GlideRecord('cmdb_model');
+            if (!modelGr.get(target.getValue('model'))) {
+                return this._err('target has no model');
+            }
+            if (modelGr.getValue('cmdb_model_category') !== this.EQUIPMENT_CASE_CATEGORY) {
+                return this._err('target is not an Equipment Case');
+            }
+        }
+
+        var moved = 0;
+        var errors = [];
+        for (var i = 0; i < assetIds.length; i++) {
+            var aid = assetIds[i];
+            if (targetCaseId && aid === targetCaseId) {
+                errors.push({ sys_id: aid, error: 'cannot move case into itself' });
+                continue;
+            }
+            var a = new GlideRecord('alm_asset');
+            if (!a.get(aid)) {
+                errors.push({ sys_id: aid, error: 'asset not found' });
+                continue;
+            }
+            a.parent = targetCaseId || '';
+            if (a.update()) {
+                moved++;
+            } else {
+                errors.push({ sys_id: aid, error: 'update failed' });
+            }
+        }
+
+        return JSON.stringify({ ok: true, moved: moved, errors: errors });
+    },
+
+    _countContents: function(caseId) {
+        var ga = new GlideAggregate('alm_asset');
+        ga.addQuery('parent', caseId);
+        ga.addQuery('install_status', '!=', this.INSTALL_STATUS_RETIRED);
+        ga.addAggregate('COUNT');
+        ga.query();
+        if (ga.next()) {
+            return parseInt(ga.getAggregate('COUNT'), 10) || 0;
+        }
+        return 0;
+    },
+
+    _err: function(msg) {
+        return JSON.stringify({ ok: false, error: msg });
+    },
+
+    type: 'PelicanCaseAPI'
+});
+]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>opencode</sys_created_by>
+        <sys_created_on>2026-05-27 11:07:31</sys_created_on>
+        <sys_id>0ce6057d1cda43acb14dd924d873732a</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>PelicanCaseAPI</sys_name>
+        <sys_package display_value="Pelican Case Manager" source="x_1535598_pelican">5b3d4036408341f0aa010bfcfc35dc9a</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Pelican Case Manager">5b3d4036408341f0aa010bfcfc35dc9a</sys_scope>
+        <sys_update_name>sys_script_include_0ce6057d1cda43acb14dd924d873732a</sys_update_name>
+        <sys_updated_by>opencode</sys_updated_by>
+        <sys_updated_on>2026-05-27 11:07:31</sys_updated_on>
+    </sys_script_include>
+</record_update>

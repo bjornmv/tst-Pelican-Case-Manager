@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element attributes="enforce_dot_walk_cross_scope_access=true" db_object_id="0279c37a4709c3107ed4bb30116d43c9" label="Pelican Asset Move" max_length="40" name="x_1535598_pelican_asset_move" type="collection">
+        <element choice="1" default="case" label="Mode" max_length="16" name="mode" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Reassign to Employee" value="user"/>
+                <element inactive_on_update="false" label="Move between Equipment Cases" value="case"/>
+            </choice>
+        </element>
+        <element attributes="edge_encryption_enabled=true" display="true" label="Number" max_length="40" name="number" type="string"/>
+        <element attributes="encode_utf8=false" label="Target case" max_length="32" name="target_case" reference="alm_asset" type="reference"/>
+        <element attributes="encode_utf8=false" label="Source case" max_length="32" name="source_case" reference="alm_asset" type="reference"/>
+        <element label="Asset count" max_length="40" name="asset_count" type="integer"/>
+        <element attributes="encode_utf8=false" label="Source user" max_length="32" name="source_user" reference="sys_user" type="reference"/>
+        <element label="Error message" max_length="4000" name="error_message" type="multi_two_lines"/>
+        <element label="Assets (CSV)" max_length="16000" name="assets_csv" type="multi_two_lines"/>
+        <element attributes="encode_utf8=false" label="Target user" max_length="32" name="target_user" reference="sys_user" type="reference"/>
+        <element attributes="edge_encryption_enabled=true" label="Processed at" max_length="40" name="processed_at" type="glide_date_time"/>
+        <element choice="1" default="pending" label="Status" max_length="16" name="status" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Done" value="done"/>
+                <element inactive_on_update="false" label="Partial" value="partial"/>
+                <element inactive_on_update="false" label="Error" value="error"/>
+                <element inactive_on_update="false" label="Pending" value="pending"/>
+            </choice>
+        </element>
+        <index name="index">
+            <element name="source_case"/>
+        </index>
+        <index name="index2">
+            <element name="source_user"/>
+        </index>
+        <index name="index3">
+            <element name="target_case"/>
+        </index>
+        <index name="index4">
+            <element name="target_user"/>
+        </index>
+    </element>
+</database>

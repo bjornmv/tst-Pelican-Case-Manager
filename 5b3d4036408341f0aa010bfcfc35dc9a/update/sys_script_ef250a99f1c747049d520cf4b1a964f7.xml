@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update sys_domain="global" table="sys_script">
+    <sys_script action="INSERT_OR_UPDATE">
+        <abort_action>false</abort_action>
+        <access>package_private</access>
+        <action_delete>false</action_delete>
+        <action_insert>true</action_insert>
+        <action_query>false</action_query>
+        <action_update>false</action_update>
+        <active>true</active>
+        <add_message>false</add_message>
+        <advanced>true</advanced>
+        <change_fields>false</change_fields>
+        <client_callable>false</client_callable>
+        <collection>x_1535598_pelican_asset_move</collection>
+        <condition/>
+        <description>Bulk-moves alm_asset records based on the producer variables, then writes status back onto the audit row before insert.</description>
+        <execute_function>false</execute_function>
+        <filter_condition/>
+        <is_rest>false</is_rest>
+        <message/>
+        <name>Pelican Asset Move — fulfil</name>
+        <order>100</order>
+        <priority>100</priority>
+        <rest_method/>
+        <rest_method_text/>
+        <rest_service/>
+        <rest_service_text/>
+        <rest_variables/>
+        <role_conditions/>
+        <script><![CDATA[(function executeRule(current, previous) {
+    var moved = 0;
+    var errors = [];
+    var assetCsv = String(current.assets_csv || '');
+    var ids = assetCsv.split(',');
+    var mode = String(current.mode || 'case');
+    var targetCase = String(current.target_case || '');
+    var targetUser = String(current.target_user || '');
+
+    if (mode === 'case' && !targetCase) errors.push('Missing target case');
+    if (mode === 'user' && !targetUser) errors.push('Missing target user');
+
+    if (errors.length === 0) {
+        for (var i = 0; i < ids.length; i++) {
+            var aid = (ids[i] + '').replace(/^\s+|\s+$/g, '');
+            if (!aid) continue;
+            var gr = new GlideRecord('alm_asset');
+            if (gr.get(aid)) {
+                if (mode === 'case') {
+                    gr.parent = targetCase;
+                } else {
+                    gr.assigned_to = targetUser;
+                }
+                if (gr.update()) {
+                    moved++;
+                } else {
+                    errors.push('Update failed for ' + aid + ': ' + gr.getLastErrorMessage());
+                }
+            } else {
+                errors.push('Asset not found: ' + aid);
+            }
+        }
+    }
+
+    current.asset_count = moved;
+    current.processed_at = new GlideDateTime();
+    if (errors.length === 0) {
+        current.status = 'done';
+    } else if (moved > 0) {
+        current.status = 'partial';
+    } else {
+        current.status = 'error';
+    }
+    if (errors.length) {
+        current.error_message = errors.join('\n');
+    }
+})(current, previous);
+]]></script>
+        <sys_class_name>sys_script</sys_class_name>
+        <sys_created_by>opencode</sys_created_by>
+        <sys_created_on>2026-05-28 09:58:42</sys_created_on>
+        <sys_domain>global</sys_domain>
+        <sys_domain_path>/</sys_domain_path>
+        <sys_id>ef250a99f1c747049d520cf4b1a964f7</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>Pelican Asset Move — fulfil</sys_name>
+        <sys_overrides/>
+        <sys_package display_value="Pelican Case Manager" source="x_1535598_pelican">5b3d4036408341f0aa010bfcfc35dc9a</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Pelican Case Manager">5b3d4036408341f0aa010bfcfc35dc9a</sys_scope>
+        <sys_update_name>sys_script_ef250a99f1c747049d520cf4b1a964f7</sys_update_name>
+        <sys_updated_by>opencode</sys_updated_by>
+        <sys_updated_on>2026-05-28 09:58:42</sys_updated_on>
+        <template/>
+        <when>before</when>
+    </sys_script>
+    <sys_translated_text action="delete_multiple" query="documentkey=ef250a99f1c747049d520cf4b1a964f7"/>
+</record_update>

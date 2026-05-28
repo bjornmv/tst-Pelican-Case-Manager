@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update sys_domain="global" table="sys_app_module">
+    <sys_app_module action="INSERT_OR_UPDATE">
+        <active>true</active>
+        <application display_value="Pelican Cases">3d6da5bf24e349389764fc60eb9325a9</application>
+        <assessment/>
+        <device_type/>
+        <filter table="alm_asset">model.cmdb_model_category=14f99cf4471887507ed4bb30116d43ae^install_status!=7^ORDERBYasset_tag<item endquery="false" field="model.cmdb_model_category" goto="false" newquery="false" operator="=" or="false" value="14f99cf4471887507ed4bb30116d43ae"/>
+            <item display_value="Retired" endquery="false" field="install_status" goto="false" newquery="false" operator="!=" or="false" value="7"/>
+            <item endquery="false" field="" goto="false" newquery="false" operator="ORDERBY" or="false" value="asset_tag"/>
+        </filter>
+        <hint>List of every Pelican equipment case on the instance</hint>
+        <homepage/>
+        <image/>
+        <link_type>FILTER</link_type>
+        <map_page/>
+        <mobile_title/>
+        <mobile_view_name/>
+        <name>alm_asset</name>
+        <order>200</order>
+        <override_menu_roles>false</override_menu_roles>
+        <query/>
+        <report/>
+        <require_confirmation>false</require_confirmation>
+        <roles>asset,itil</roles>
+        <route/>
+        <screen/>
+        <sys_class_name>sys_app_module</sys_class_name>
+        <sys_created_by>opencode</sys_created_by>
+        <sys_created_on>2026-05-27 11:07:31</sys_created_on>
+        <sys_domain>global</sys_domain>
+        <sys_domain_path>/</sys_domain_path>
+        <sys_id>4cf7efbb1bd3496a8f6e5bac53f039b6</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>All Pelican Cases</sys_name>
+        <sys_overrides/>
+        <sys_package display_value="Pelican Case Manager" source="x_1535598_pelican">5b3d4036408341f0aa010bfcfc35dc9a</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Pelican Case Manager">5b3d4036408341f0aa010bfcfc35dc9a</sys_scope>
+        <sys_update_name>sys_app_module_4cf7efbb1bd3496a8f6e5bac53f039b6</sys_update_name>
+        <sys_updated_by>opencode</sys_updated_by>
+        <sys_updated_on>2026-05-27 11:07:31</sys_updated_on>
+        <timeline_page/>
+        <title>All Pelican Cases</title>
+        <uncancelable>false</uncancelable>
+        <ux_list/>
+        <view_name/>
+        <window_name/>
+    </sys_app_module>
+</record_update>

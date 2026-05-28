@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_ui_page">
+    <sys_ui_page action="INSERT_OR_UPDATE">
+        <category>general</category>
+        <client_script><![CDATA[(function() {
+    var state = {
+        cases: [],
+        sourceId: null,
+        targetId: null,
+        assets: [],
+        showEmpty: false,
+        sourceFilter: '',
+        targetFilter: '',
+        assetFilter: ''
+    };
+
+    var $ = function(id) { return document.getElementById(id); };
+
+    function ajax(method, params, cb) {
+        var ga = new GlideAjax('x_1535598_pelican.PelicanCaseAPI');
+        ga.addParam('sysparm_name', method);
+        Object.keys(params || {}).forEach(function(k) {
+            ga.addParam(k, params[k]);
+        });
+        ga.getXMLAnswer(function(answer) {
+            var data;
+            try { data = JSON.parse(answer || '{}'); } catch (e) { data = { ok: false, error: 'bad JSON: ' + answer }; }
+            cb(data);
+        });
+    }
+
+    function banner(kind, msg) {
+        var b = $('pwb-banner');
+        b.className = 'pwb-banner ' + kind;
+        b.textContent = msg;
+        b.style.display = 'block';
+        if (kind === 'success') {
+            setTimeout(function() { b.style.display = 'none'; }, 4000);
+        }
+    }
+
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s).replace(/[&<>"']/g, function(c) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+        });
+    }
+
+    function loadCases() {
+        $('pwb-source-list').innerHTML = '<div class="pwb-loading">Loading cases…</div>';
+        $('pwb-target-list').innerHTML = '<div class="pwb-loading">Loading cases…</div>';
+        ajax('listCases', { sysparm_include_empty: state.showEmpty ? 'true' : 'false' }, function(d) {
+            if (!d.ok) { banner('error', d.error || 'Failed to load cases'); return; }
+            state.cases = d.cases || [];
+            renderSourceList();
+            renderTargetList();
+        });
+    }
+
+    function renderSourceList() {
+        var list = $('pwb-source-list');
+        var filtered = state.cases.filter(matchesCase(state.sourceFilter));
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="pwb-empty">No cases match.</div>';
+            return;
+        }
+        list.innerHTML = filtered.map(function(c) {
+            var sel = (c.sys_id === state.sourceId) ? ' selected' : '';
+            var pill = c.content_count === 0
+                ? '<span class="pwb-pill pwb-pill-empty">empty</span>'
+                : '<span class="pwb-pill">' + c.content_count + '</span>';
+            return '<div class="pwb-row' + sel + '" data-id="' + c.sys_id + '" data-role="source">' +
+                '<div class="pwb-row-main">' +
+                '<div class="pwb-row-title">' + escapeHtml(c.asset_tag || c.display_name) + '</div>' +
+                '<div class="pwb-row-meta">' + escapeHtml(c.model) + (c.location ? ' · ' + escapeHtml(c.location) : '') + '</div>' +
+                '</div>' + pill +
+                '</div>';
+        }).join('');
+    }
+
+    function renderTargetList() {
+        var list = $('pwb-target-list');
+        var filtered = state.cases.filter(matchesCase(state.targetFilter)).filter(function(c) {
+            return c.sys_id !== state.sourceId;
+        });
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="pwb-empty">No target cases available.</div>';
+            return;
+        }
+        list.innerHTML = filtered.map(function(c) {
+            var sel = (c.sys_id === state.targetId) ? ' selected' : '';
+            var pill = c.content_count === 0
+                ? '<span class="pwb-pill">empty</span>'
+                : '<span class="pwb-pill">' + c.content_count + '</span>';
+            return '<div class="pwb-row' + sel + '" data-id="' + c.sys_id + '" data-role="target">' +
+                '<div class="pwb-row-main">' +
+                '<div class="pwb-row-title">' + escapeHtml(c.asset_tag || c.display_name) + '</div>' +
+                '<div class="pwb-row-meta">' + escapeHtml(c.model) + (c.location ? ' · ' + escapeHtml(c.location) : '') + '</div>' +
+                '</div>' + pill +
+                '</div>';
+        }).join('');
+    }
+
+    function matchesCase(filter) {
+        var f = (filter || '').toLowerCase().trim();
+        return function(c) {
+            if (!f) return true;
+            return (c.asset_tag || '').toLowerCase().indexOf(f) !== -1 ||
+                   (c.display_name || '').toLowerCase().indexOf(f) !== -1 ||
+                   (c.model || '').toLowerCase().indexOf(f) !== -1;
+        };
+    }
+
+    function loadAssets() {
+        if (!state.sourceId) {
+            $('pwb-asset-list').innerHTML = '<div class="pwb-empty">Select a source case on the left</div>';
+            $('pwb-assets-sub').textContent = 'No case selected';
+            updateButtons();
+            return;
+        }
+        $('pwb-asset-list').innerHTML = '<div class="pwb-loading">Loading assets…</div>';
+        ajax('getCaseContents', { sysparm_case_id: state.sourceId }, function(d) {
+            if (!d.ok) { banner('error', d.error || 'Failed to load assets'); return; }
+            state.assets = d.assets || [];
+            renderAssets();
+        });
+    }
+
+    function renderAssets() {
+        var list = $('pwb-asset-list');
+        var f = state.assetFilter.toLowerCase().trim();
+        var filtered = state.assets.filter(function(a) {
+            if (!f) return true;
+            return (a.asset_tag || '').toLowerCase().indexOf(f) !== -1 ||
+                   (a.display_name || '').toLowerCase().indexOf(f) !== -1 ||
+                   (a.model || '').toLowerCase().indexOf(f) !== -1;
+        });
+        var c = state.cases.filter(function(c) { return c.sys_id === state.sourceId; })[0];
+        $('pwb-assets-sub').textContent = (c ? (c.asset_tag || c.display_name) + ' — ' : '') + state.assets.length + ' asset' + (state.assets.length === 1 ? '' : 's');
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="pwb-empty">' + (state.assets.length === 0 ? 'This case is empty.' : 'No assets match.') + '</div>';
+            updateButtons();
+            return;
+        }
+        list.innerHTML = filtered.map(function(a) {
+            return '<div class="pwb-row pwb-asset-row" data-id="' + a.sys_id + '" data-role="asset">' +
+                '<input type="checkbox" data-asset-id="' + a.sys_id + '"/>' +
+                '<div class="pwb-row-main">' +
+                '<div class="pwb-row-title">' + escapeHtml(a.asset_tag || a.display_name) + '</div>' +
+                '<div class="pwb-row-meta">' + escapeHtml(a.model) + (a.serial_number ? ' · SN ' + escapeHtml(a.serial_number) : '') + '</div>' +
+                '</div></div>';
+        }).join('');
+        updateButtons();
+    }
+
+    function selectedAssetIds() {
+        return [].slice.call(document.querySelectorAll('#pwb-asset-list input[type=checkbox]:checked'))
+            .map(function(cb) { return cb.getAttribute('data-asset-id'); });
+    }
+
+    function updateButtons() {
+        var n = selectedAssetIds().length;
+        $('pwb-selected-count').textContent = n;
+        var ready = state.sourceId && state.targetId;
+        $('pwb-move').disabled = !ready || n === 0;
+        $('pwb-move-all').disabled = !ready || state.assets.length === 0;
+    }
+
+    function move(allInSource) {
+        if (!state.sourceId || !state.targetId) { banner('error', 'Pick both a source and a target case.'); return; }
+        var ids = allInSource ? state.assets.map(function(a) { return a.sys_id; }) : selectedAssetIds();
+        if (ids.length === 0) { banner('error', 'Select at least one asset.'); return; }
+
+        var src = state.cases.filter(function(c) { return c.sys_id === state.sourceId; })[0];
+        var tgt = state.cases.filter(function(c) { return c.sys_id === state.targetId; })[0];
+        if (!confirm('Move ' + ids.length + ' asset' + (ids.length === 1 ? '' : 's') + ' from ' + (src && src.asset_tag) + ' → ' + (tgt && tgt.asset_tag) + '?')) return;
+
+        $('pwb-move').disabled = true;
+        $('pwb-move-all').disabled = true;
+        ajax('moveAssets', { sysparm_asset_ids: ids.join(','), sysparm_target_case_id: state.targetId }, function(d) {
+            if (!d.ok) { banner('error', d.error || 'Move failed'); updateButtons(); return; }
+            var msg = 'Moved ' + d.moved + ' asset' + (d.moved === 1 ? '' : 's');
+            if (d.errors && d.errors.length) msg += ' (' + d.errors.length + ' error' + (d.errors.length === 1 ? '' : 's') + ')';
+            banner('success', msg);
+            loadCases();
+            loadAssets();
+        });
+    }
+
+    function init() {
+        $('pwb-show-empty').addEventListener('change', function(e) {
+            state.showEmpty = e.target.checked;
+            loadCases();
+        });
+        $('pwb-refresh').addEventListener('click', function() {
+            loadCases();
+            loadAssets();
+        });
+        $('pwb-source-search').addEventListener('input', function(e) {
+            state.sourceFilter = e.target.value;
+            renderSourceList();
+        });
+        $('pwb-target-search').addEventListener('input', function(e) {
+            state.targetFilter = e.target.value;
+            renderTargetList();
+        });
+        $('pwb-asset-search').addEventListener('input', function(e) {
+            state.assetFilter = e.target.value;
+            renderAssets();
+        });
+
+        document.addEventListener('click', function(e) {
+            var row = e.target.closest && e.target.closest('.pwb-row');
+            if (!row) return;
+            var role = row.getAttribute('data-role');
+            var id = row.getAttribute('data-id');
+            if (role === 'source') {
+                state.sourceId = id;
+                if (state.targetId === id) state.targetId = null;
+                renderSourceList();
+                renderTargetList();
+                loadAssets();
+            } else if (role === 'target') {
+                state.targetId = id;
+                renderTargetList();
+                updateButtons();
+            }
+        });
+
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.matches('#pwb-asset-list input[type=checkbox]')) {
+                updateButtons();
+            }
+        });
+
+        $('pwb-select-all').addEventListener('click', function() {
+            [].forEach.call(document.querySelectorAll('#pwb-asset-list input[type=checkbox]'), function(cb) { cb.checked = true; });
+            updateButtons();
+        });
+        $('pwb-select-none').addEventListener('click', function() {
+            [].forEach.call(document.querySelectorAll('#pwb-asset-list input[type=checkbox]'), function(cb) { cb.checked = false; });
+            updateButtons();
+        });
+
+        $('pwb-move').addEventListener('click', function() { move(false); });
+        $('pwb-move-all').addEventListener('click', function() { move(true); });
+
+        loadCases();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+]]></client_script>
+        <description>Pelican Equipment Case Manager — 3-column slushbucket for moving assets between cases.</description>
+        <direct>false</direct>
+        <endpoint>x_1535598_pelican_workbench.do</endpoint>
+        <html><![CDATA[<?xml version="1.0" encoding="utf-8"?>
+<j:jelly xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
+  <style>/* Native SN look + feel — Polaris-flavored neutral palette */
+    body { background: #f6f7f8; margin: 0; }
+    .pwb-shell { font-family: "SourceSansPro", "Helvetica Neue", Helvetica, Arial, sans-serif; color: #293e40; max-width: 1480px; margin: 0 auto; padding: 16px 20px; }
+    .pwb-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0 16px; border-bottom: 1px solid #e0e3e5; margin-bottom: 16px; }
+    .pwb-title { font-size: 20px; font-weight: 600; margin: 0; color: #293e40; }
+    .pwb-subtitle { font-size: 12px; color: #6a777a; margin-top: 2px; }
+    .pwb-toolbar { display: flex; gap: 8px; align-items: center; }
+    .pwb-btn { border: 1px solid #c8ccd1; background: #ffffff; color: #293e40; padding: 6px 12px; border-radius: 3px; font-size: 13px; cursor: pointer; line-height: 1.4; }
+    .pwb-btn:hover { background: #f0f3f6; }
+    .pwb-btn-primary { background: #02475e; color: #ffffff; border-color: #02475e; }
+    .pwb-btn-primary:hover { background: #03617f; border-color: #03617f; }
+    .pwb-btn-primary:disabled, .pwb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .pwb-check-row { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #293e40; }
+
+    .pwb-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; align-items: start; }
+    .pwb-pane { background: #ffffff; border: 1px solid #e0e3e5; border-radius: 4px; min-height: 520px; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .pwb-pane-header { padding: 10px 12px; border-bottom: 1px solid #e0e3e5; background: #fafbfc; border-radius: 4px 4px 0 0; }
+    .pwb-pane-title { font-size: 13px; font-weight: 600; color: #293e40; text-transform: uppercase; letter-spacing: 0.4px; }
+    .pwb-pane-sub { font-size: 12px; color: #6a777a; margin-top: 2px; }
+    .pwb-search { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #c8ccd1; border-radius: 3px; font-size: 13px; margin-top: 8px; }
+    .pwb-search:focus { outline: none; border-color: #02475e; box-shadow: 0 0 0 2px rgba(2,71,94,0.15); }
+    .pwb-list { flex: 1; overflow-y: auto; max-height: 600px; }
+    .pwb-row { padding: 8px 12px; border-bottom: 1px solid #f0f3f6; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .pwb-row:last-child { border-bottom: none; }
+    .pwb-row:hover { background: #f6f9fb; }
+    .pwb-row.selected { background: #e7f1f5; border-left: 3px solid #02475e; padding-left: 9px; }
+    .pwb-row-main { flex: 1; min-width: 0; }
+    .pwb-row-title { font-weight: 500; color: #293e40; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pwb-row-meta { font-size: 11px; color: #6a777a; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pwb-pill { display: inline-block; background: #eef0f2; color: #293e40; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 500; }
+    .pwb-pill-empty { background: #fdecec; color: #b32626; }
+    .pwb-pill-target { background: #d6efdd; color: #15693a; }
+
+    .pwb-asset-row input[type="checkbox"] { margin: 0; }
+    .pwb-empty { padding: 40px 16px; text-align: center; color: #6a777a; font-size: 13px; }
+    .pwb-loading { padding: 16px; text-align: center; color: #6a777a; font-size: 13px; }
+
+    .pwb-actions { display: flex; justify-content: center; gap: 12px; padding: 16px 0 8px; }
+
+    .pwb-banner { padding: 10px 14px; border-radius: 3px; margin-bottom: 12px; font-size: 13px; display: none; }
+    .pwb-banner.success { background: #e8f5ed; color: #15693a; border: 1px solid #c5e3d0; }
+    .pwb-banner.error { background: #fde9e9; color: #b32626; border: 1px solid #f1c5c5; }
+
+    .pwb-meta-strip { display: flex; gap: 16px; padding: 8px 12px; background: #fafbfc; border-bottom: 1px solid #e0e3e5; font-size: 12px; color: #6a777a; }
+    .pwb-meta-strip strong { color: #293e40; }</style>
+  <div id="pwb-app" class="pwb-shell">
+    <div class="pwb-header">
+      <div>
+        <h1 class="pwb-title">Pelican Equipment Case Manager</h1>
+        <div class="pwb-subtitle">Move assets between Pelican equipment cases (alm_asset.parent containment)</div>
+      </div>
+      <div class="pwb-toolbar">
+        <label class="pwb-check-row">
+          
+          <input type="checkbox" id="pwb-show-empty"></input>
+          Show empty cases
+        </label>
+        <button id="pwb-refresh" class="pwb-btn">Refresh</button>
+      </div>
+    </div>
+    <div id="pwb-banner" class="pwb-banner"></div>
+    <div class="pwb-grid">
+      <!-- SOURCE CASE -->
+      <div class="pwb-pane">
+        <div class="pwb-pane-header">
+          <div class="pwb-pane-title">Source case</div>
+          <div class="pwb-pane-sub" id="pwb-source-sub">Pick a case to view its contents</div>
+          <input id="pwb-source-search" class="pwb-search" placeholder="Search by tag, name, model..."></input>
+        </div>
+        <div id="pwb-source-list" class="pwb-list">
+          <div class="pwb-loading">Loading cases…</div>
+        </div>
+      </div>
+      <!-- ASSETS -->
+      <div class="pwb-pane">
+        <div class="pwb-pane-header">
+          <div class="pwb-pane-title">Assets in source</div>
+          <div class="pwb-pane-sub" id="pwb-assets-sub">No case selected</div>
+          <input id="pwb-asset-search" class="pwb-search" placeholder="Filter assets..."></input>
+        </div>
+        <div class="pwb-meta-strip">
+          <span>
+            <a href="javascript:void(0)" id="pwb-select-all">Select all</a>
+          </span>
+          <span>
+            <a href="javascript:void(0)" id="pwb-select-none">Select none</a>
+          </span>
+          <span style="margin-left:auto">
+            
+            <strong id="pwb-selected-count">0</strong>
+            selected
+          </span>
+        </div>
+        <div id="pwb-asset-list" class="pwb-list">
+          <div class="pwb-empty">Select a source case on the left</div>
+        </div>
+      </div>
+      <!-- TARGET CASE -->
+      <div class="pwb-pane">
+        <div class="pwb-pane-header">
+          <div class="pwb-pane-title">Target case</div>
+          <div class="pwb-pane-sub" id="pwb-target-sub">Pick a destination case</div>
+          <input id="pwb-target-search" class="pwb-search" placeholder="Search target cases..."></input>
+        </div>
+        <div id="pwb-target-list" class="pwb-list">
+          <div class="pwb-loading">Loading cases…</div>
+        </div>
+      </div>
+    </div>
+    <div class="pwb-actions">
+      <button id="pwb-move" class="pwb-btn pwb-btn-primary" disabled="disabled">Move selected →</button>
+      <button id="pwb-move-all" class="pwb-btn" disabled="disabled">Move all in source →</button>
+    </div>
+  </div>
+</j:jelly>]]></html>
+        <name>workbench</name>
+        <processing_script/>
+        <sys_class_name>sys_ui_page</sys_class_name>
+        <sys_created_by>opencode</sys_created_by>
+        <sys_created_on>2026-05-27 11:07:32</sys_created_on>
+        <sys_id>54cfc1764d5e42faa27e31fd1a6a95bf</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>workbench</sys_name>
+        <sys_package display_value="Pelican Case Manager" source="x_1535598_pelican">5b3d4036408341f0aa010bfcfc35dc9a</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Pelican Case Manager">5b3d4036408341f0aa010bfcfc35dc9a</sys_scope>
+        <sys_update_name>sys_ui_page_54cfc1764d5e42faa27e31fd1a6a95bf</sys_update_name>
+        <sys_updated_by>opencode</sys_updated_by>
+        <sys_updated_on>2026-05-27 11:07:32</sys_updated_on>
+    </sys_ui_page>
+</record_update>
